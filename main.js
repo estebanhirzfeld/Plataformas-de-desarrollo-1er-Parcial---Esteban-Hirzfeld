@@ -1,5 +1,6 @@
+import { TaskManager } from './components/TaskManager.js';
+
 // import USERS from './users.js';
-import { TaskItem } from './components/TaskItem.js';
 
 
 // // 1. Login 
@@ -28,9 +29,24 @@ import { TaskItem } from './components/TaskItem.js';
 
 
 
-// Create a new task
-const task = new TaskItem('task1', 'Grocery Shopping');
+// Usage Example:
+const taskManager = new TaskManager();
 
-// Add to container
-task.appendTo(document.getElementById('taskContainer'));
+// Load existing tasks on page load
+const existingTasks = taskManager.loadTasks();
+existingTasks.forEach(task => {
+    task.appendTo(document.getElementById('taskContainer'));
+});
 
+// Handle adding new tasks
+const addTaskForm = document.getElementById('addTask');
+addTaskForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const input = addTaskForm.querySelector('input');
+    const taskName = input.value.trim();
+    if (taskName) {
+        const newTask = taskManager.createTask(`task-${Date.now()}`, taskName);
+        newTask.appendTo(document.getElementById('taskContainer'));
+        input.value = '';
+    }
+});

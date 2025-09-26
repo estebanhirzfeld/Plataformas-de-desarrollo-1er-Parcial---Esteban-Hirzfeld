@@ -1,8 +1,9 @@
 export class TaskItem {
-    constructor(id, name) {
+    constructor(id, name, repository) {
         this.id = id;
         this.name = name;
         this.completed = false;
+        this.repository = repository; 
         this.element = this.createElement();
         this.bindEvents();
     }
@@ -85,6 +86,7 @@ export class TaskItem {
         });
     }
 
+    
     setComplete(completed = true) {
         this.completed = completed;
         this.checkbox.checked = completed;
@@ -98,7 +100,10 @@ export class TaskItem {
             this.element.classList.remove('opacity-75');
         }
 
-        // Dispatch custom event
+        // Persist the change
+        this.repository.update(this.id, { completed: this.completed });
+
+        // Dispatch event
         this.element.dispatchEvent(new CustomEvent('taskCompleted', {
             detail: { id: this.id, name: this.name, completed: this.completed }
         }));
@@ -110,7 +115,9 @@ export class TaskItem {
             this.name = newName.trim();
             this.label.textContent = this.name;
 
-            // Dispatch custom event
+            // Persist the change
+            this.repository.update(this.id, { name: this.name });
+
             this.element.dispatchEvent(new CustomEvent('taskEdited', {
                 detail: { id: this.id, name: this.name }
             }));
@@ -119,14 +126,33 @@ export class TaskItem {
 
     delete() {
         if (confirm(`Are you sure you want to delete "${this.name}"?`)) {
-            // Dispatch custom event before removing
+            // Remove from storage first
+            this.repository.delete(this.id);
+            
             this.element.dispatchEvent(new CustomEvent('taskDeleted', {
                 detail: { id: this.id, name: this.name }
             }));
             
-            // Remove from DOM
             this.element.remove();
         }
+    }
+
+    // Static method to create from stored data
+    static fromData(data, repository) {
+        const task = new TaskItem(data.id, data.name, repository);
+        if (data.completed) {
+            task.setComplete(data.completed);
+        }
+        return task;
+    }
+
+    // Get serializable data
+    toData() {
+        return {
+            id: this.id,
+            name: this.name,
+            completed: this.completed
+        };
     }
 
     // Method to append to a container
