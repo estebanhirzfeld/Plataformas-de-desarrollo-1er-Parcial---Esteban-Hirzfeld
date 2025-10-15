@@ -3,105 +3,100 @@ export class TaskItem {
         this.id = id;
         this.name = name;
         this.completed = false;
-        this.repository = repository; 
-        this.element = this.createElement();
+        this.repository = repository;
+        this.element = null;
+        this.render();
         this.bindEvents();
     }
 
-    createElement() {
-        // Create main li element
-        const li = document.createElement('li');
-        li.className = 'flex items-center justify-between p-4 rounded-lg bg-background-light dark:bg-background-dark';
+    // Component template
+    template() {
+        return `
+            <li class="flex items-center justify-between p-4 rounded-lg bg-background-light dark:bg-background-dark ${this.completed ? 'opacity-75' : ''}">
+                <div class="flex items-center gap-3">
+                    <input 
+                        type="checkbox" 
+                        id="${this.id}"
+                        class="h-5 w-5 rounded border-gray-300 text-primary focus:ring-primary"
+                        ${this.completed ? 'checked' : ''}
+                    />
+                    <label 
+                        for="${this.id}"
+                        class="text-gray-800 dark:text-gray-200 ${this.completed ? 'line-through text-gray-500' : ''}"
+                    >
+                        ${this.name}
+                    </label>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button 
+                        class="text-gray-500 dark:text-gray-400 hover:text-primary dark:hover:text-primary focus:outline-none"
+                        data-action="edit"
+                    >
+                        <span class="material-symbols-outlined text-base">edit</span>
+                    </button>
+                    <button 
+                        class="text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-500 focus:outline-none"
+                        data-action="delete"
+                    >
+                        <span class="material-symbols-outlined text-base">delete</span>
+                    </button>
+                </div>
+            </li>
+        `;
+    }
 
-        // Create left side div (checkbox and label)
-        const leftDiv = document.createElement('div');
-        leftDiv.className = 'flex items-center gap-3';
+    // Render the component
+    render() {
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = this.template().trim();
+        this.element = tempDiv.firstChild;
+    }
 
-        // Create checkbox
-        const checkbox = document.createElement('input');
-        checkbox.className = 'h-5 w-5 rounded border-gray-300 text-primary focus:ring-primary';
-        checkbox.id = this.id;
-        checkbox.type = 'checkbox';
-        checkbox.checked = this.completed;
-
-        // Create label
-        const label = document.createElement('label');
-        label.className = 'text-gray-800 dark:text-gray-200';
-        label.setAttribute('for', this.id);
-        label.textContent = this.name;
-
-        leftDiv.appendChild(checkbox);
-        leftDiv.appendChild(label);
-
-        // Create right side div (buttons)
-        const rightDiv = document.createElement('div');
-        rightDiv.className = 'flex items-center gap-2';
-
-        // Create edit button
-        const editButton = document.createElement('button');
-        editButton.className = 'text-gray-500 dark:text-gray-400 hover:text-primary dark:hover:text-primary focus:outline-none';
-        const editIcon = document.createElement('span');
-        editIcon.className = 'material-symbols-outlined text-base';
-        editIcon.textContent = 'edit';
-        editButton.appendChild(editIcon);
-
-        // Create delete button
-        const deleteButton = document.createElement('button');
-        deleteButton.className = 'text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-500 focus:outline-none';
-        const deleteIcon = document.createElement('span');
-        deleteIcon.className = 'material-symbols-outlined text-base';
-        deleteIcon.textContent = 'delete';
-        deleteButton.appendChild(deleteIcon);
-
-        rightDiv.appendChild(editButton);
-        rightDiv.appendChild(deleteButton);
-
-        // Assemble the complete element
-        li.appendChild(leftDiv);
-        li.appendChild(rightDiv);
-
-        // Store references to important elements
-        this.checkbox = checkbox;
-        this.label = label;
-        this.editButton = editButton;
-        this.deleteButton = deleteButton;
-
-        return li;
+    // Re-render the component
+    rerender() {
+        const parent = this.element.parentNode;
+        const nextSibling = this.element.nextSibling;
+        
+        this.element.remove();
+        this.render();
+        
+        if (nextSibling) {
+            parent.insertBefore(this.element, nextSibling);
+        } else {
+            parent.appendChild(this.element);
+        }
+        
+        this.bindEvents();
     }
 
     bindEvents() {
         // Bind checkbox change event
-        this.checkbox.addEventListener('change', () => {
-            this.setComplete(this.checkbox.checked);
+        const checkbox = this.element.querySelector('input[type="checkbox"]');
+        checkbox.addEventListener('change', () => {
+            this.setComplete(checkbox.checked);
         });
 
         // Bind edit button click event
-        this.editButton.addEventListener('click', () => {
+        const editButton = this.element.querySelector('[data-action="edit"]');
+        editButton.addEventListener('click', () => {
             this.edit();
         });
 
         // Bind delete button click event
-        this.deleteButton.addEventListener('click', () => {
+        const deleteButton = this.element.querySelector('[data-action="delete"]');
+        deleteButton.addEventListener('click', () => {
             this.delete();
         });
     }
 
-    
     setComplete(completed = true) {
         this.completed = completed;
-        this.checkbox.checked = completed;
-        
-        // Update visual state
-        if (completed) {
-            this.label.classList.add('line-through', 'text-gray-500');
-            this.element.classList.add('opacity-75');
-        } else {
-            this.label.classList.remove('line-through', 'text-gray-500');
-            this.element.classList.remove('opacity-75');
-        }
 
         // Persist the change
         this.repository.update(this.id, { completed: this.completed });
+
+        // Re-render with new state
+        this.rerender();
 
         // Dispatch event
         this.element.dispatchEvent(new CustomEvent('taskCompleted', {
@@ -113,10 +108,12 @@ export class TaskItem {
         const newName = prompt('Edit task name:', this.name);
         if (newName && newName.trim() !== '') {
             this.name = newName.trim();
-            this.label.textContent = this.name;
 
             // Persist the change
             this.repository.update(this.id, { name: this.name });
+
+            // Re-render with new state
+            this.rerender();
 
             this.element.dispatchEvent(new CustomEvent('taskEdited', {
                 detail: { id: this.id, name: this.name }
@@ -141,7 +138,8 @@ export class TaskItem {
     static fromData(data, repository) {
         const task = new TaskItem(data.id, data.name, repository);
         if (data.completed) {
-            task.setComplete(data.completed);
+            task.completed = data.completed;
+            task.rerender();
         }
         return task;
     }
